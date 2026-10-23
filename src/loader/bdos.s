@@ -66,8 +66,9 @@ bdos.directory.read:
 
         push ix
         push de
-        ld hl,screen.free + 9
-        call mod.determine.type
+
+        call multi.part.determine.type.ix   ; also accepts name.1 as first part
+
         pop de
         pop ix
 

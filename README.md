@@ -37,6 +37,25 @@ The disk (or mass storage device) is then scanned for mod files, the drive can b
 
 When a file is selected, it is loaded and the "demo" starts.
 
+#### multi-part mods
+
+A mod too big for one disk or B-DOS record (about 795K) can be split into parts, which needs external memory (megabyte interface) to load. The parts are named `NAME.1`, `NAME.2` and so on up to `NAME.9`, where `NAME` is up to 8 characters.
+
+- on mass storage, put each part in the next record: part 1 in record n, part 2 in record n+1, ...
+- on floppy, put each part on its own disk; the loader asks for the next disk
+
+Only part 1 shows in the file list, with the size of the whole mod. Loading stops once the size given by the mod header has been loaded, so no end marker is needed. If a part cannot be found, or the mod will not fit in the external memory fitted, a message is shown and the loader returns to the file list.
+
+`tools/split_mod.py` splits a mod into parts, writing one disk image per part:
+
+```
+python3 tools/split_mod.py bigsong.mod --name BIGSONG --out parts
+```
+
+`tools/test_multipart.py` runs the assembled loader code in a Z80 emulator (`pip install z80`) against the split images to check that every byte is loaded back in place.
+
+The multi-part code lives in the top 2K of the screen page (`multi.part.base`, 0xb800), which mode 2 does not use, since the loader page is full. The loader file therefore starts at 0xb800 and is loaded there by boot.
+
 ### burstplayer
 
 This generates the code for the burst player based on the output device:

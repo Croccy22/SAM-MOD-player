@@ -122,6 +122,7 @@ burstplayer.start:      equ 0x8000
     screen.free:            equ 0x8000 + 0x1800 ; 2K free memory
     screen.attributes:      equ screen + 0x2000
     screen.width:           equ 0x20
+    multi.part.base:        equ 0x8000 + 0x3800 ; 2K for multi-part loader code (loader/multipart.s)
 
     screen.24.rows:         equ ( 8 * screen.width )
     screen.32.rows:         equ ( 6 * screen.width )

@@ -737,6 +737,10 @@ else
 
     call @get.total.sample.length.chl
 
+    ld a,(mod.multi.part)
+    or a
+    jr nz,@+multi.part
+
     ld a,(file.size_kb + 2)
     cp c
     jr nz,@different
@@ -774,6 +778,26 @@ else
     ld a,(@var.mod.type)
     set 6,a     ; 4 bit mod
     ld (@var.mod.type),a
+
+    ret
+
+  @multi.part: ; first part of multi-part mod (see multipart.s), file is only
+               ; part of the mod, so use calculated size instead of file size
+
+    pop de
+    pop de
+
+    ld a,l
+    ld (multi.part.size + 0),a
+    ld a,h
+    ld (multi.part.size + 1),a
+    ld (file.size_kb + 1),a
+    ld a,c
+    ld (multi.part.size + 2),a
+    ld (file.size_kb + 2),a
+
+    xor a       ; set z
+    ld a,(@var.mod.type)
 
     ret
 

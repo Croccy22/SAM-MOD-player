@@ -58,9 +58,10 @@
 
     call @set.burstplayer.page
 
-    ld a,page.loader
+    ld a,page.loader - 1            ; loader file starts with multi-part code
+    ld de,multi.part.base           ; in the top 2K of the screen page
     ld hl,@file.loader
-    call @load.file
+    call @load.file.address
 
     ld a,page.loader
     ld de,0x8000 + 0x2000

@@ -18,6 +18,19 @@
 
 load.offs:  equ 0x8000
 
+;-------------------------------------------------------------------------------
+; multi-part mod loading lives in the unused top 2K of the screen page (the
+; mode 2 attributes end at 0xb800), since the loader page is full. The loader
+; file therefore starts at 0xb800 and boot loads it there.
+
+    org multi.part.base
+
+    include "multipart.s"
+
+    assert $ <= 0xc000
+    defs 0xc000 - $
+
+;-------------------------------------------------------------------------------
     org 0xc000
 
     ld a,e
@@ -942,13 +955,24 @@ sam.match:
 
     pop af          ; chuck return address
 
+    ld (multi.part.sp),sp   ; stack level to return to loader on error
+
     ld a,l
     and %10000000
-    or samdos.dir.track
-    ld l,a
-    ld d,(hl)       ; first track
-    inc l
-    ld e,(hl)       ; first sector
+    ld l,a          ; -> start of directory entry
+
+    push hl
+    inc l           ; samdos.dir.filename
+    ld de,multi.part.name
+    ld bc,10
+    ldir            ; keep full 10 character name for multi-part check
+    pop hl
+
+    call multi.part.get.entry   ; de = first track / sector, keeps length
+
+    push de
+    call multi.part.init        ; checks for "name.1" and reads full mod size
+    pop de
 
     push hl
     push de
@@ -967,8 +991,12 @@ sam.match:
     pop hl
 
     ld a,(loader.drive)
+    ld c,page.mod.megabyte      ; only used by @meg.load.mod
+    ld hl,load.offs             ;
 
     call @load.mod
+
+    call multi.part.continue    ; load any further parts
 
     jp file.loaded
 
@@ -1061,45 +1089,41 @@ sam.match:
 
 ;-------------------------------------------------------------------------------
 @relocate.meg.load.mod:
+meg.load.mod.relocate:
 
     org inst.buffer
 
  @meg.load.mod:
 
-    ld (@+drive+1),a
-    ld hl,dos.sector
+ ; input:
+ ; - a  = drive
+ ; - d  = track of first sector
+ ; - e  = sector of first sector
+ ; - c  = external memory page to load to
+ ; - hl = address to load to (0x8000-0xbfff)
 
-    rst 8
-    defb dos.hrsad
-    di
+ ; output:
+ ; - c  = external memory page after last sector loaded
+ ; - hl = address after last sector loaded (0x8000-0xbfff)
+
+ ; the last sector is always copied in full (510 bytes), so the output
+ ; can be up to 509 bytes past the real end of the file
+
+    ld (@+drive+1),a
+    ld a,c
+    ld (@+external+1),a
 
     in a,(port.hmpr)
     ld (@+store.hmpr+1),a
 
-    ld a,page.mod.megabyte
-    ld (@external+1),a
-    out (port.xmpr.c),a
-    inc a
-    out (port.xmpr.d),a
-    ld a,high.memory.external
-    out (port.hmpr),a
-
-    ld hl,dos.sector + 9
-    ld de,load.offs
-    ld bc,510-9
-    ldir
-    ld d,(hl)
-    inc l
-    ld e,(hl)
-
-    ld hl,load.offs+510-9
+    ld bc,dos.sector + 9            ; first sector starts with 9 byte header
+    ld (@+source+1),bc
+    ld bc,510 - 9
+    ld (@+length+1),bc
 
   @loop:
 
-    ld a,(@+store.hmpr+1)
-    out (port.hmpr),a
-
-    push hl
+    push hl                         ; destination
 
     ld hl,dos.sector
 
@@ -1118,38 +1142,52 @@ sam.match:
     inc a
     out (port.xmpr.d),a
 
-    pop de
+    pop de                          ; destination
 
-    ld hl,dos.sector
-    ld bc,510
+   @source:
+    ld hl,0
+   @length:
+    ld bc,0
     ldir
 
-    push de
-    ld d,(hl)
-    inc hl
-    ld e,(hl)
-    pop hl
+    ld hl,dos.sector                ; following sectors have no header
+    ld (@-source+1),hl
+    ld hl,510
+    ld (@-length+1),hl
 
-    ld a,e
-    or d
-    jr z,@+file.loaded
+    ld hl,(dos.sector + 510)        ; l = next track, h = next sector
+    ld a,l
+    ld l,h
+    ld h,a
+    ex de,hl                        ; de = next track / sector, hl = destination
+
     bit 6,h
-    jr z,@-loop
+    jr z,@+same.page
 
     res 6,h
-    ld a,(@external+1)
+    ld a,(@-external+1)
     inc a
-    ld (@external+1),a
+    ld (@-external+1),a
 
-    jr @-loop
+  @same.page:
 
-  @file.loaded:
-  @store.hmpr:
+   @store.hmpr:
     ld a,0
     out (port.hmpr),a
+
+    ld a,d
+    or e
+    jr nz,@-loop
+
+    ld a,(@-external+1)
+    ld c,a
+
     ret
 
  @meg.load.mod.len: equ $ - @meg.load.mod
+
+ meg.load.mod:          equ @meg.load.mod           ; for multipart.s
+ meg.load.mod.len:      equ @meg.load.mod.len
 
     org @relocate.meg.load.mod + @meg.load.mod.len
 
