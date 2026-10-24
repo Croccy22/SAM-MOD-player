@@ -44,6 +44,26 @@ multi.part.digit.hl:
  ; - z  = filename ends in ".1" (trailing spaces ignored)
  ; - hl = address of part digit
 
+    call multi.part.name.hl
+    ret nz
+    ld a,c
+    cp "1"
+
+    ret
+
+;-------------------------------------------------------------------------------
+multi.part.name.hl:
+
+ ; check if filename is that of a part of a multi-part mod
+
+ ; input:
+ ; - hl = 10 character filename
+
+ ; output:
+ ; - z  = filename ends in ".1" to ".9" (trailing spaces ignored)
+ ; - c  = part digit ["1"-"9"]
+ ; - hl = address of part digit
+
     ld bc,9
     add hl,bc           ; -> last character
 
@@ -67,17 +87,145 @@ multi.part.digit.hl:
 
     ld a,b              ; b = position of last character [0-9]
     cp 2
-    jr c,@-not.multi.part   ; need at least one character before ".1"
+    jr c,@-not.multi.part   ; need at least one character before ".n"
 
     ld a,(hl)
     cp "1"
-    ret nz
+    jr c,@-not.multi.part
+    cp "9" + 1
+    jr nc,@-not.multi.part
+    ld c,a
 
     dec hl
     ld a,(hl)
     inc hl
     cp "."
 
+    ret
+
+;-------------------------------------------------------------------------------
+multi.part.select.record:
+
+ ; select record hl when the user moves left or right through the records,
+ ; remembering the direction so that records holding only later parts of
+ ; multi-part mods (NAME.2 - NAME.9) are skipped when the directory is read
+
+    push hl
+    ld a,dvar.record
+    call bdos.get.dvar.word     ; hl = current record
+    pop de                      ; de = new record
+    or a
+    sbc hl,de
+    ld a,1                      ; up
+    jr c,@+direction
+    ld a,-1                     ; down
+    jr nz,@+direction
+    xor a                       ; same record
+  @direction:
+    ld (multi.part.skip),a
+
+    ex de,hl
+    jp bdos.select.record.hl
+
+;-------------------------------------------------------------------------------
+multi.part.skip.records:
+
+ ; called after a record's directory has been read (bdos.read.dir): if the
+ ; user has just moved to this record and it holds only later parts, move on
+ ; in the same direction until a record that is empty or holds anything else,
+ ; or the first or last record
+
+    call @parts.only
+    jr nz,@+done
+
+  multi.part.skip: equ $+1
+    ld a,0                      ; 0 = no skipping, 1 = up, -1 = down
+    or a
+    ret z
+
+    ld e,a
+    ld d,0
+    rla
+    jr nc,$+3
+    dec d                       ; de = direction
+
+    push de
+    ld a,dvar.record
+    call bdos.get.dvar.word
+    pop de
+    add hl,de                   ; hl = next record
+    ld a,h
+    or l
+    jr z,@+done                 ; before the first
+
+    push hl
+    ld a,dvar.records
+    call bdos.get.dvar.word
+    pop de
+    or a
+    sbc hl,de
+    jr c,@+done                 ; past the last
+
+    ex de,hl
+    call bdos.select.record.hl
+    call bdos.read.dir
+
+    ld a,dvar.record            ; show the new record number
+    call bdos.get.dvar.word
+    ld de,loader.dir + loader.dir.len + 15
+    call text.hl.decimal
+
+    jr multi.part.skip.records
+
+  @done:
+
+    xor a
+    ld (multi.part.skip),a
+
+    ret
+
+;-------------------------------------------------------------------------------
+@parts.only:
+
+ ; output:
+ ; - z = the directory just read holds files, and all are later parts
+
+    ld hl,loader.directory
+    ld b,80
+    ld c,0                      ; later parts found
+
+  @loop:
+
+    ld a,(hl)
+    or a
+    jr z,@+next                 ; no (code) file in this entry
+
+    push bc
+    push hl
+    call multi.part.name.hl
+    ld a,c
+    pop hl
+    pop bc
+    ret nz                      ; not a part
+    cp "2"
+    jr c,@+not.later            ; part 1 is listed: stop here
+    inc c
+
+  @next:
+
+    ld de,loader.directory.len
+    add hl,de
+    djnz @-loop
+
+    ld a,c
+    or a
+    jr z,@+not.later            ; empty record: stop here
+    xor a                       ; z
+    ret
+
+  @not.later:
+
+    or 1                        ; nz
     ret
 
 ;-------------------------------------------------------------------------------

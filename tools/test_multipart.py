@@ -93,6 +93,18 @@ list.dir:
 driver.listed:
     jr driver.listed
 
+move.record:                    ; as the loader's record left / right keys
+    ld sp,0x7f00
+    xor a
+    ld (loader.entries),a
+    ld hl,(driver.target)
+    call multi.part.select.record
+    ld de,loader.dir
+    call bdos.directory.read
+    jr driver.listed
+
+driver.target: defw 0
+
 driver.dest: defw 0
 driver.page: defb 0
 """
@@ -333,6 +345,30 @@ def main():
     ok &= check("single file: loads", result == "done" and sam.external_bytes(len(small)) == small)
     ok &= check("single file: end pointer", 0 <= end - len(small) < 510, f"end {end}, length {len(small)}")
     ok &= check("single file: not multi-part", sam.peek("multi.part.active") == b"\0" and not sam.messages)
+
+    # 8. moving through records skips records with only later parts
+    other = split_mod.make_disk("OTHER", mod[:100_000], "OTHER")
+    shelf = [disks[0]] + disks[1:] + [other, EMPTY_DISK, disks[1]]  # 1: BIG.1 .. 5: BIG.5, 6: other, 7: empty, 8: BIG.2
+
+    def move(start, target):
+        sam = Sam(records=shelf, record=start)
+        a = sam.dsyms["driver.target"]
+        sam.m.memory[a:a + 2] = target.to_bytes(2, "little")
+        sam.run("move.record")
+        return sam.record(), sam.m.memory[sam.syms["loader.entries"]]
+
+    rec, n = move(1, 2)
+    ok &= check("skip: up from part 1 to next mod", rec == 6 and n == 1, f"record {rec}, {n} files listed")
+    rec, n = move(6, 5)
+    ok &= check("skip: down to part 1", rec == 1 and n == 1, f"record {rec}")
+    rec, n = move(6, 7)
+    ok &= check("skip: empty record not skipped", rec == 7 and n == 0, f"record {rec}")
+    rec, n = move(7, 8)
+    ok &= check("skip: stops at the last record", rec == 8, f"record {rec}")
+    rec, n = move(1, 4)
+    ok &= check("skip: jump of 3 then on to the next mod", rec == 6, f"record {rec}")
+    rec, n = move(1, 1)
+    ok &= check("skip: same record not moved", rec == 1, f"record {rec}")
 
     print("ALL PASSED" if ok else "SOME TESTS FAILED")
     sys.exit(0 if ok else 1)

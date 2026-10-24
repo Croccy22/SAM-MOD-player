@@ -45,7 +45,7 @@ A mod too big for one disk or B-DOS record (about 795K) can be split into parts,
 - on mass storage, put each part in the next record: part 1 in record n, part 2 in record n+1, ...
 - on floppy, put each part on its own disk; the loader asks for the next disk
 
-Only part 1 shows in the file list, with the size of the whole mod. Loading stops once the size given by the mod header has been loaded, so no end marker is needed. If a part cannot be found, or the mod will not fit in the external memory fitted, a message is shown and the loader returns to the file list.
+Only part 1 shows in the file list, with the size of the whole mod. When moving through records with cursor left or right (also with shift or symbol), records that hold only later parts are skipped: the selection carries on in the same direction to the next record that is empty or holds anything else, or stops at the first or last record. Loading stops once the size given by the mod header has been loaded, so no end marker is needed. If a part cannot be found, or the mod will not fit in the external memory fitted, a message is shown and the loader returns to the file list.
 
 `tools/split_mod.py` splits a mod into parts, writing one disk image per part:
 

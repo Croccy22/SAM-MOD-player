@@ -14,6 +14,7 @@ bdos.directory.read:
 
     push de
     call bdos.read.dir
+    call multi.part.skip.records
 
     ; now convert the SAM stuff to loader format
 

@@ -591,7 +591,7 @@ loader:
 
  @change.record:
 
-    call bdos.select.record.hl
+    call multi.part.select.record   ; skips records with only later parts
     pop bc                      ; toss bc
     ld c,1
     jp select.key
