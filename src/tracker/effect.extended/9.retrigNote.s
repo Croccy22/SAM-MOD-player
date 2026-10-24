@@ -38,4 +38,8 @@
     ld (0),a
  bp.offset.8:
     ld (0),hl
-    ret
+ se.hook.trigger.2:
+    ld hl,0             ; sample engine: note (re)started
+    ld (hl),se.ch.flag.trigger
+ r1.149:
+    jp period.nop       ; note delay: set the delayed note's period

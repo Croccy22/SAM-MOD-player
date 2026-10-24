@@ -23,6 +23,8 @@ page.demo:                  equ 0x1f    ; 0x0f
     burstplayer.ram:            equ 0x8006
     burstplayer.page:           equ 0x8007
 
+    bp.device.engine:           equ 8       ; FPGA sample engine (docs/sample-engine.md)
+
     bp.id:                      equ 53      ; "BUR"
     bp.device:                  equ 105
     bp.pointers:                equ 106     ; offsets to variables located in burst page
@@ -79,6 +81,27 @@ enable.burst:           equ var + 50    ; start burstplayer
 exit.burst:             equ var + 52    ; stop burstplayer and exit
 disable.pos:            equ var + 54    ; disable "B" command (jump) + looping
 mstatus:                equ var + 55    ; 0=playing, 1=stopped
+
+; FPGA sample engine - written by hooks in the tracker's channel routines (for
+; every device), read once a frame by the engine runtime (burstplayer.s)
+
+se.channels:            equ var + 0x40  ; se.ch.len bytes per channel
+    se.ch.flags:            equ 0       ; se.ch.flag.*, cleared by the engine runtime
+        se.ch.flag.trigger:     equ %01 ; note started (position in burst player variables)
+        se.ch.flag.loop:        equ %10 ; new sample without note
+    se.ch.period:           equ 1       ; amiga period
+    se.ch.volume:           equ 3       ; [0x00-0x3f], 0 = channel muted
+    se.ch.entry:            equ 4       ; st.end of the channel's sample in sample.table
+    se.ch.len:              equ 6
+
+assert se.channels + 4 * se.ch.len <= var + @var.size
+
+; sample.table entry (tracker.s) offsets used by the engine runtime
+
+st.engine.start:        equ 0           ; offset, page
+st.engine.end:          equ 3           ; offset, page - end of first play
+st.engine.loop.start:   equ 7           ; offset, page
+st.engine.loop.len:     equ 13          ; words, 1 = not looped, 0 = empty sample
 
 @var.size:              equ 0x80
 

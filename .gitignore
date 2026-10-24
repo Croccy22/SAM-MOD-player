@@ -1,3 +1,4 @@
 /obj/
 /res/*
 !/res/dos
+__pycache__/

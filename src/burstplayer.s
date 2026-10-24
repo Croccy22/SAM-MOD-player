@@ -12,6 +12,7 @@ include "memory.i"
 include "ports/internal.i"
 include "ports/megabyte.i"
 include "constants/opcodes.i"
+include "ports/sample_engine.i"
 
 ;---------------------------------------------------------------
 
@@ -41,6 +42,7 @@ burstplayer.device: defb 0  ; [0-7]
     device.dac.2:       equ 5
     device.bluealpha:   equ 6
     device.quazar:      equ 7
+    device.engine:      equ bp.device.engine    ; 8 - FPGA sample engine
 
     defb 0 ; burstplayer.port
 
@@ -71,7 +73,27 @@ burstplayer.page:   defb page.burstplayer
     out (port.lmpr),a
     ld (@sp+1),sp
     ld sp,0xc000
+
+    ld a,(burstplayer.device)
+    cp device.engine
+    jr z,@engine
+
     call maker
+    jr @lmpr
+
+@engine:
+
+    ; FPGA sample engine: make the burst player for the screen device (for
+    ; its tables and helper routines), then replace its run time with the
+    ; engine run time
+
+    ld a,device.clut
+    ld (burstplayer.device),a
+    call maker
+    ld a,device.engine
+    ld (burstplayer.device),a
+    call engine.setup
+
 @lmpr:
     ld a,0
     out (port.lmpr),a
@@ -3377,6 +3399,8 @@ list.device.properties:
     include "devices/dac.i"
     include "devices/blue_alpha.i"
     include "devices/quazar.i"
+
+    include "devices/engine.i"
 
 ;===============================================================
 mk.movecode:

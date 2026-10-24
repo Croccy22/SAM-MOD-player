@@ -6,7 +6,7 @@
 
 ;---------------------------------------------------------------
 
-device.device:          defb device.samdac  ; [0-5]
+device.device:          defb device.samdac  ; [0-6]
 
     device.saa:             equ 0
     device.samdac:          equ 1
@@ -14,6 +14,7 @@ device.device:          defb device.samdac  ; [0-5]
     device.bluealpha:       equ 3
     device.quazar:          equ 4
     device.clut:            equ 5
+    device.engine:          equ 6       ; FPGA sample engine
 
 device.device.port:     defb 0 ; [0-1]
 device.speed:           defb 0 ; [0-1]
@@ -67,7 +68,7 @@ device.start:
     and %11100
     call nz,@set.memory.mb
 
-    ret
+    jp engine.detect                ; FPGA sample engine (loader/engine.s)
 
 ;---------------------------------------------------------------
 
@@ -216,7 +217,7 @@ device.start:
 @select.device:
 
     ld b,row.device
-    ld a,5                  ; max device
+    ld a,device.engine      ; max device
     call cursor.init
 
     ld a,(device.device)
@@ -251,6 +252,9 @@ device.start:
     call print.device.details
 
     call scan.keyboard.return
+    jr z,@-loop
+
+    call engine.unusable            ; sample engine selected but absent
     jr z,@-loop
 
     ld a,(device.device)
@@ -300,6 +304,7 @@ device.start:
     defb 6  ; blue alpha
     defb 7  ; quazar
     defb 0  ; screen
+    defb bp.device.engine
 
 ;---------------------------------------------------------------
 @create.burstplayer:
@@ -407,6 +412,10 @@ print.device.details:
     ld b,6
     ld de,text.blank
 
+    cp device.engine
+    call z,engine.details.de        ; -> z
+    jr z,@no.port
+
     cp device.samdac
     jr c,@no.port
     cp device.dac+1
@@ -472,10 +481,7 @@ print.speed.details:
 
 text.speed:         defw text.speed.pal,text.speed.ntsc
 
-text.speed.pal:     defm "7.093790 MHz"
-                    defb 0
-text.speed.ntsc:    defm "7.159090 MHz"
-                    defb 0
+; text.speed.pal and text.speed.ntsc are in loader/engine.s (loader page is full)
 
 
 ;---------------------------------------------------------------
@@ -497,8 +503,10 @@ row.device: equ 5
     defm " Quazar Soundcard"
     defb 0
     defm " Screen"
+    defb 0
+    defm " FPGA sample engine"
     defb 0,2
-row.speed:  equ 14
+row.speed:  equ 15
     defm "AMIGA SPEED"
     defb 0,2
     defm " PAL"
@@ -517,7 +525,7 @@ device.screen.memory.mb:
 device.attributes:
     defb 3,colour.orange
     defb 2,colour.purple
-    defb 6,colour.blue
+    defb 7,colour.blue
     defb 2,colour.purple
     defb 3,colour.blue
     defb 2,colour.green
@@ -531,6 +539,7 @@ device.details:
     defb 6, mono
     defb 8, surround
     defb 7, visual
+    defb 8, stereo
 
     visual:     equ 0
     mono:       equ 1

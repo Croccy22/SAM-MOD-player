@@ -119,6 +119,15 @@
 
  @leave.relocate:
 
+    call se.patch               ; sample engine hooks (tracker.s)
+
+    ld a,(bp.device)
+    cp bp.device.engine
+    ld a,0
+    jr nz,$+3
+    inc a
+    ld (tracker.engine),a
+
     ld hl,c1 + mk.cur.pat + 1
     ld bc,routine.len - 1
     ld de,mod.current.row

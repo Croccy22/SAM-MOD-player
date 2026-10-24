@@ -41,6 +41,7 @@ tracker.octaves:        defb 3              ; number of octaves (3 or 5)
 tracker.samples:        defb 0              ; [15|31]
 tracker.ram:            defb 0              ; %XXXRR (RAM / 256K)
 tracker.gap:            defb 0              ; [3|6]
+tracker.engine:         defb 0              ; 1 = FPGA sample engine (set by init)
 
 ;-------------------------------------------------------------------------------
 
@@ -79,14 +80,19 @@ sample.table:
  st.finetune:   defb 0x00   ; fine tune value
 
  st.sample:     defb 0x00   ; empty sample?
-                defb 0x00   ; \
-                defb 0x00   ;  ) unused
-                defb 0x00   ; /
+ st.engine.loop.len.t:      ; sample engine: loop length in words, 0 = empty
+                defw 0x0000
+                defb 0x00   ; unused
 
  sample.table.len:    equ $
     assert sample.table.len == 16
 
     org $ + sample.table
+
+    assert st.engine.start      == st.start
+    assert st.engine.end        == st.end
+    assert st.engine.loop.start == st.loop.start
+    assert st.engine.loop.len   == st.engine.loop.len.t
 
  st.prev.loop:   equ sample.table.len - st.loop
  st.prev.start:  equ sample.table.len - st.start
@@ -477,6 +483,8 @@ play.voice:
     ld (cx.sample.offset),bc
  r1.006:
     ld (cx.sample.page),a
+ se.hook.entry:
+    ld (0),hl               ; sample engine: hl = st.end of sample
 
     ld a,l                  ; highest 4 bits are significant
     xor h                   ; lowest bit is significant, -> xor = unique id
@@ -683,6 +691,9 @@ play.voice:
     ld (0),a
  bp.offset.5:
     ld (0),hl
+ se.hook.trigger.1:
+    ld hl,0                 ; sample engine: note started
+    ld (hl),se.ch.flag.trigger
     xor a
  bp.speed.fraction.1:
     ld (0),a
@@ -733,6 +744,9 @@ play.voice:
     ld (0),a
  bp.offset.6:
     ld (0),hl
+ se.hook.loop:
+    ld hl,0                 ; sample engine: new sample without note
+    set 1,(hl)              ; se.ch.flag.loop
     xor a
  bp.speed.fraction.2:
     ld (0),a
@@ -765,6 +779,8 @@ play.voice:
     ld de,(period)
 
  period.nop.de:
+ se.hook.period:
+    ld (0),de           ; sample engine: period
     sla e               ;convert pitch
     rl d
     ld a,d
@@ -790,10 +806,12 @@ bp.volume:
 
  volume: equ $+1
     ld a,0
+ @chan.off:
+ se.hook.volume:
+    ld (0),a                    ; sample engine: volume, 0 when channel off
     rra
  saa.exvol:
     and %01111111               ; %01111110 when SAA
- @chan.off:
     add volume.table \ 0x100    ; 3 when SAA channel 2/3
  bp.volume_table:
     ld (0),a
@@ -997,6 +1015,194 @@ move.size:  equ 6 * 256     ;move size = gap size
 
 conv.list:  include "lists/conv.i"
 build.list: include "lists/build.i"
+
+;-------------------------------------------------------------------------------
+; FPGA sample engine (docs/sample-engine.md)
+;
+; This code shares the move buffer (move.spc) with conv.list and build.list:
+; - se.patch is only used by init, like the lists
+; - install.engine replaces @move.samples, the only user of the move buffer
+;-------------------------------------------------------------------------------
+
+se.patch.list:
+
+    defw se.hook.entry      + 1, se.ch.entry
+    defw se.hook.trigger.1  + 1, se.ch.flags
+    defw se.hook.trigger.2  + 1, se.ch.flags
+    defw se.hook.loop       + 1, se.ch.flags
+    defw se.hook.period     + 2, se.ch.period
+    defw se.hook.volume     + 1, se.ch.volume
+    defw -1
+
+;-------------------------------------------------------------------------------
+se.patch:
+
+ ; point the sample engine hooks in each channel routine at that channel's
+ ; se.channels block (done for every device, the hooks always run)
+
+    ld ix,se.patch.list
+
+    @loop.hooks:
+
+        ld l,(ix + 0)
+        ld h,(ix + 1)
+        ld a,h
+        and l
+        inc a
+        ret z
+
+        ld bc,c1
+        add hl,bc               ; hl = operand in channel 1 routine
+        ld a,(ix + 2)
+        add a,se.channels \ 0x100
+        ld e,a
+        ld a,se.channels / 0x100
+        adc a,0
+        ld d,a                  ; de = channel 1 variable
+
+        ld b,4
+
+        @loop.channels:
+
+            ld (hl),e
+            inc hl
+            ld (hl),d
+            dec hl
+
+            push bc
+            ld bc,routine.len
+            add hl,bc
+            ex de,hl
+            ld bc,se.ch.len
+            add hl,bc
+            ex de,hl
+            pop bc
+
+            djnz @-loop.channels
+
+        ld bc,4
+        add ix,bc
+
+        jr @-loop.hooks
+
+;-------------------------------------------------------------------------------
+    org $ - 0x8000              ; runs low like install.mod.s
+
+install.engine.low:
+
+ ; samples stay exactly as in the file (no gaps or loop copies), so fill in
+ ; the sample table as ProTracker plays a sample:
+ ; - st.end             = end of the first play (loop end if looped)
+ ; - st.loop.start      = loop start (sample start if not looped)
+ ; - st.engine.loop.len = loop length in words (1 if not looped, 0 = empty)
+ ; - st.loop            = st.loop.none, so the burst player variables never loop
+
+ ; output:
+ ; - chl = silent sample for the burst player variables (not used)
+
+    call install.get.sample.bug.a
+    ld (@engine.bug),a
+
+    ld iy,sample.table.low
+    ld ix,mod.samples + 0x8000
+    ld a,(tracker.samples.low)
+    ld c,a
+
+    @loop:
+
+        ld l,(iy + st.start + 0)
+        ld h,(iy + st.start + 1)
+        ld b,(iy + st.start + 2)
+
+        xor a
+        ld (iy + st.engine.loop.len + 0),a
+        ld (iy + st.engine.loop.len + 1),a
+
+        ld a,(iy + st.sample)
+        or a
+        jr z,@store.end             ; empty: end = start, loop length 0
+
+        ld a,(iy + st.loop)
+        or a
+        jr nz,@looped
+
+        ; not looped: play the whole sample, then loop its first word
+
+        ld (iy + st.loop.start + 0),l
+        ld (iy + st.loop.start + 1),h
+        ld (iy + st.loop.start + 2),b
+        ld (iy + st.engine.loop.len + 0),1
+
+        ld d,(ix + mod.sample.len.words + 0)
+        ld e,(ix + mod.sample.len.words + 1)
+        call install.add.bhl.de2
+        jr @store.end
+
+     @looped:
+
+        ; loop length (soul-o-matic bug: loop length is loop end)
+
+        ld d,(ix + mod.sample.repeat.len.words + 0)
+        ld e,(ix + mod.sample.repeat.len.words + 1)
+
+        ld a,(@engine.bug)
+        cp 2
+        jr nz,@loop.len.ok
+
+        ld a,e
+        sub (ix + mod.sample.repeat.offset.words + 1)
+        ld e,a
+        ld a,d
+        sbc a,(ix + mod.sample.repeat.offset.words + 0)
+        ld d,a
+        jr c,@loop.len.one
+        or e
+        jr nz,@loop.len.ok
+     @loop.len.one:
+        ld de,1
+     @loop.len.ok:
+        ld (iy + st.engine.loop.len + 0),e
+        ld (iy + st.engine.loop.len + 1),d
+        push de
+
+        ; loop start (noisetracker bug: offset in bytes)
+
+        ld d,(ix + mod.sample.repeat.offset.words + 0)
+        ld e,(ix + mod.sample.repeat.offset.words + 1)
+        ld a,(@engine.bug)
+        cp 1
+        jr z,@offset.bytes
+        call install.add.bhl.de2
+        jr @got.loop.start
+     @offset.bytes:
+        call install.add.bhl.de
+     @got.loop.start:
+        ld (iy + st.loop.start + 0),l
+        ld (iy + st.loop.start + 1),h
+        ld (iy + st.loop.start + 2),b
+
+        pop de
+        call install.add.bhl.de2    ; end = loop end
+
+     @store.end:
+
+        ld (iy + st.end + 0),l
+        ld (iy + st.end + 1),h
+        ld (iy + st.end + 2),b
+        ld (iy + st.loop),st.loop.none
+
+        call install.next.entry.ix.iy
+
+        dec c
+        jp nz,@-loop
+
+    ld c,b                          ; any address will do
+
+    ret
+
+ @engine.bug:   defb 0
+
+    org $ + 0x8000
 
 ;-------------------------------------------------------------------------------
 

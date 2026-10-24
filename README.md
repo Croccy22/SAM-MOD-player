@@ -25,6 +25,7 @@ This is the initial front end. It provides a screen to select the output device:
 - [blue alpha sampler](https://www.worldofsam.org/products/sound-sampler)
 - [quazar soundcard](https://www.worldofsam.org/products/quazar-surround)
 - colour lookup table
+- FPGA sample engine (see below)
 
 And the type of Amiga the mod was intended for:
 
@@ -55,6 +56,18 @@ python3 tools/split_mod.py bigsong.mod --name BIGSONG --out parts
 `tools/test_multipart.py` runs the assembled loader code in a Z80 emulator (`pip install z80`) against the split images to check that every byte is loaded back in place.
 
 The multi-part code lives in the top 2K of the screen page (`multi.part.base`, 0xb800), which mode 2 does not use, since the loader page is full. The loader file therefore starts at 0xb800 and is loaded there by boot.
+
+### FPGA sample engine
+
+An Amiga Paula-style four-channel sample player in the Tang Nano 20K expansion, on ports 0xC0 and 0xC1 ([register layout](docs/sample-engine.md)). It reads the samples straight from the external memory it provides and mixes them itself, so MODs play at full quality instead of the burst player's 10.4 kHz.
+
+- The device screen lists it as "FPGA sample engine" and shows "absent" (and won't select it) unless the engine's identification register answers and external memory is fitted.
+- The tracker is unchanged apart from small hooks that record each channel's note starts, period, volume and sample (`se.channels` in `memory.i`, patched in by `se.patch` at init).
+- For this device `burstplayer.create` still makes a screen-device burst player for its tables and helper routines, then `engine.setup` (`src/devices/engine.i`) replaces its run time: a 50 Hz frame interrupt that sets the frame palette and screen, calls the tracker, then sends the channels to the engine.
+- The run time keeps ProTracker's sample start and length per channel, so sample offset (9xx) behaves as on the Amiga (it carries over to later notes without an instrument number, and an offset past the end leaves one word). Effect E0x switches the engine's Amiga filter.
+- Samples are left exactly as in the file (no runways); `install.engine.low` fills in the sample table as ProTracker plays each sample.
+
+`tools/test_engine.py` runs the assembled player for this device in a Z80 emulator, captures the engine register writes and renders them through a model of the engine to a WAV file. `tools/solo_mod.py` and `tools/compare_audio.py` compare that, channel by channel, with OpenMPT (`openmpt123`).
 
 ### burstplayer
 

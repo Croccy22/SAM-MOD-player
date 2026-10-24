@@ -1124,6 +1124,7 @@ calculate.volume.tables:
     defb 6  ; blue alpha
     defb 8  ; quazar surround
     defb 6  ; clut
+    defb 8  ; sample engine (volume tables not used)
 
 ;-------------------------------------------------------------------------------
 create.fast.print:

@@ -18,6 +18,7 @@
     tracker.ram.low:            equ tracker.ram             - 0x8000
     tracker.samples.low:        equ tracker.samples         - 0x8000
     tracker.gap.low:            equ tracker.gap             - 0x8000
+    tracker.engine.low:         equ tracker.engine          - 0x8000
 
     sample.table.low:           equ sample.table            - 0x8000
 
@@ -101,16 +102,35 @@
     ld (iy + st.start + 1),h
     ld (iy + st.start + 2),b
 
+    ld a,(tracker.engine.low)
+    or a
+    jr z,@burst.player
+
+    call install.engine.low     ; sample engine (tracker.s)
+    jr @installed
+
+ @burst.player:
+
     call @move.samples
     call @fix.sample.loops
     call @fill.gap.sample.loops
     call @update.unused.samples
+
+ @installed:
 
     in a,(port.lmpr)
     and low.memory.page.mask
     out (port.hmpr),a
 
     jp @fs.high
+
+;-------------------------------------------------------------------------------
+; used by install.engine.low (tracker.s)
+
+    install.get.sample.bug.a:   equ @get.sample.bug.a
+    install.add.bhl.de:         equ @add.bhl.de
+    install.add.bhl.de2:        equ @add.bhl.de2
+    install.next.entry.ix.iy:   equ @next.entry.ix.iy
 
 ;-------------------------------------------------------------------------------
 @create.sample.table:

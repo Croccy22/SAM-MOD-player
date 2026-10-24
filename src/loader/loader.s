@@ -10,6 +10,7 @@
     include "../memory.i"
     include "../ports/internal.i"
     include "../ports/megabyte.i"
+    include "../ports/sample_engine.i"
     include "../ports/keyboard.i"
     include "../ports/fdc.i"
     include "../constants/dos.i"
@@ -26,6 +27,7 @@ load.offs:  equ 0x8000
     org multi.part.base
 
     include "multipart.s"
+    include "engine.s"
 
     assert $ <= 0xc000
     defs 0xc000 - $
