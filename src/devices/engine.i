@@ -1,4 +1,4 @@
-; FPGA sample engine - run time (docs/sample-engine.md)
+; SAMantha - run time (docs/sample-engine.md)
 
 ; The engine plays the samples itself, so instead of the burst player this
 ; run time only:

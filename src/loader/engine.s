@@ -1,4 +1,4 @@
-;SAM MOD player - FPGA sample engine detection (docs/sample-engine.md)
+;SAM MOD player - SAMantha detection (docs/sample-engine.md)
 
 ; lives in the spare top 2K of the screen page with multipart.s, the loader
 ; page is full

@@ -1,4 +1,4 @@
-# FPGA sample engine: register layout
+# SAMantha (FPGA sample engine): register layout
 
 Draft 2 (24 October 2026), as built in the FPGA firmware. An Amiga
 Paula-style four-channel sample player in the Tang Nano 20K expansion, so the

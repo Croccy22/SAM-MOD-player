@@ -42,7 +42,7 @@ burstplayer.device: defb 0  ; [0-7]
     device.dac.2:       equ 5
     device.bluealpha:   equ 6
     device.quazar:      equ 7
-    device.engine:      equ bp.device.engine    ; 8 - FPGA sample engine
+    device.engine:      equ bp.device.engine    ; 8 - SAMantha
 
     defb 0 ; burstplayer.port
 
@@ -83,7 +83,7 @@ burstplayer.page:   defb page.burstplayer
 
 @engine:
 
-    ; FPGA sample engine: make the burst player for the screen device (for
+    ; SAMantha: make the burst player for the screen device (for
     ; its tables and helper routines), then replace its run time with the
     ; engine run time
 

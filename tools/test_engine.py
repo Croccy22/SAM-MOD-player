@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Play a MOD through the SAM MOD player's FPGA sample engine device, emulated.
+"""Play a MOD through the SAM MOD player's SAMantha device, emulated.
 
 Runs the assembled player code in a Z80 emulator with a SAM memory map:
 burstplayer.create for the engine device, tracker.init, tracker.install.mod,
@@ -136,7 +136,7 @@ def run_frames(sam, bsym, frames):
 
 
 class Engine:
-    """Model of the FPGA sample engine (docs/sample-engine.md, draft 2)."""
+    """Model of the SAMantha (docs/sample-engine.md, draft 2)."""
 
     def __init__(self, memory, rate=48000, oversample=4):
         self.memory = memory                    # bytes, external memory

@@ -1,4 +1,4 @@
-; FPGA sample engine - see docs/sample-engine.md
+; SAMantha - see docs/sample-engine.md
 ;---------------------------------------------------------------
 
 port.sample_engine.index:           equ 0xc0 ; 192 - register index (auto increments)

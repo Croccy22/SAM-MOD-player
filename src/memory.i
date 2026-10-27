@@ -23,7 +23,7 @@ page.demo:                  equ 0x1f    ; 0x0f
     burstplayer.ram:            equ 0x8006
     burstplayer.page:           equ 0x8007
 
-    bp.device.engine:           equ 8       ; FPGA sample engine (docs/sample-engine.md)
+    bp.device.engine:           equ 8       ; SAMantha (docs/sample-engine.md)
 
     bp.id:                      equ 53      ; "BUR"
     bp.device:                  equ 105
@@ -82,7 +82,7 @@ exit.burst:             equ var + 52    ; stop burstplayer and exit
 disable.pos:            equ var + 54    ; disable "B" command (jump) + looping
 mstatus:                equ var + 55    ; 0=playing, 1=stopped
 
-; FPGA sample engine - written by hooks in the tracker's channel routines (for
+; SAMantha - written by hooks in the tracker's channel routines (for
 ; every device), read once a frame by the engine runtime (burstplayer.s)
 
 se.channels:            equ var + 0x40  ; se.ch.len bytes per channel

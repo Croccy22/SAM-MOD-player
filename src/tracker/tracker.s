@@ -41,7 +41,7 @@ tracker.octaves:        defb 3              ; number of octaves (3 or 5)
 tracker.samples:        defb 0              ; [15|31]
 tracker.ram:            defb 0              ; %XXXRR (RAM / 256K)
 tracker.gap:            defb 0              ; [3|6]
-tracker.engine:         defb 0              ; 1 = FPGA sample engine (set by init)
+tracker.engine:         defb 0              ; 1 = SAMantha (set by init)
 
 ;-------------------------------------------------------------------------------
 
@@ -1017,7 +1017,7 @@ conv.list:  include "lists/conv.i"
 build.list: include "lists/build.i"
 
 ;-------------------------------------------------------------------------------
-; FPGA sample engine (docs/sample-engine.md)
+; SAMantha (docs/sample-engine.md)
 ;
 ; This code shares the move buffer (move.spc) with conv.list and build.list:
 ; - se.patch is only used by init, like the lists

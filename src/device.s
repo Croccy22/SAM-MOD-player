@@ -14,7 +14,7 @@ device.device:          defb device.samdac  ; [0-6]
     device.bluealpha:       equ 3
     device.quazar:          equ 4
     device.clut:            equ 5
-    device.engine:          equ 6       ; FPGA sample engine
+    device.engine:          equ 6       ; SAMantha
 
 device.device.port:     defb 0 ; [0-1]
 device.speed:           defb 0 ; [0-1]
@@ -68,7 +68,7 @@ device.start:
     and %11100
     call nz,@set.memory.mb
 
-    jp engine.detect                ; FPGA sample engine (loader/engine.s)
+    jp engine.detect                ; SAMantha (loader/engine.s)
 
 ;---------------------------------------------------------------
 
@@ -504,7 +504,7 @@ row.device: equ 5
     defb 0
     defm " Screen"
     defb 0
-    defm " FPGA sample engine"
+    defm " SAMantha"
     defb 0,2
 row.speed:  equ 15
     defm "AMIGA SPEED"
