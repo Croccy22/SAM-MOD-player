@@ -66,6 +66,7 @@ SAMantha is an Amiga Paula-style four-channel sample player in the Tang Nano 20K
 - For this device `burstplayer.create` still makes a screen-device burst player for its tables and helper routines, then `engine.setup` (`src/devices/engine.i`) replaces its run time: a 50 Hz frame interrupt that sets the frame palette and screen, calls the tracker, then sends the channels to the engine.
 - The run time keeps ProTracker's sample start and length per channel, so sample offset (9xx) behaves as on the Amiga (it carries over to later notes without an instrument number, and an offset past the end leaves one word). Effect E0x switches the engine's Amiga filter.
 - Samples are left exactly as in the file (no runways); `install.engine.low` fills in the sample table as ProTracker plays each sample.
+- Stereo: every tune starts at a separation of 60% (SEPARATION 153: each channel 80% on its own side, 20% on the other, softer than the Amiga's hard left/right on headphones). Key S steps 100, 75, 60, 50, 25 and 0% (mono); the tracker screen (F4) shows it as `Sep:` in place of the volume, which this device doesn't use, and the choice is kept for later tunes until a reboot. `tools/test_stereo.py` checks it in the emulator.
 
 `tools/test_engine.py` runs the assembled player for this device in a Z80 emulator, captures the engine register writes and renders them through a model of the engine to a WAV file. `tools/solo_mod.py` and `tools/compare_audio.py` compare that, channel by channel, with OpenMPT (`openmpt123`).
 

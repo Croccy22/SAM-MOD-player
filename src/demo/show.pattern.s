@@ -50,6 +50,10 @@ show.pattern:
     call print.amplification.factor
 
     ld de,@text.keys
+    ld a,(bp.device)
+    cp bp.device.engine
+    jr nz,$+5
+    ld de,@text.keys.engine         ; S instead of -+ (volume tables not used)
     ld hl,screen + screen.24.rows * 22 + 0
     ld b,32
     call print.de.b
@@ -107,6 +111,8 @@ show.pattern:
 
 @text.volume:   defm "Vol: 000%  Speed: 00  Tempo: 000"
 @text.keys:     defm "F1-F6 1234 C <> P ESC -+ Loop:  "
+@text.keys.engine:
+                defm "F1-F6 1234 C <> P ESC S  Loop:  "
 @text.author:   include "../constants/text.copyright.i"
                 defm "    "
                 include "../constants/text.version.i"
@@ -116,6 +122,10 @@ show.pattern:
 
 ;-------------------------------------------------------------------------------
 print.amplification.factor:
+
+    ld a,(bp.device)
+    cp bp.device.engine
+    jr z,print.separation
 
     ld hl,screen + screen.24.rows * 1 + 5
     ld bc,(amplification.factor+1)
@@ -182,6 +192,31 @@ print.percent:
 
     ld a," "
     jp print.chr
+
+;-------------------------------------------------------------------------------
+print.separation:
+
+ ; SAMantha: "Sep: 60%" in place of the volume (key S, demo.s)
+
+    ld de,text.separation
+    ld hl,screen + screen.24.rows * 1 + 0
+    ld b,5
+    call print.de.b
+
+    ld a,(stereo.step)
+    ld e,a
+    add a,a
+    add a,e                         ; * 3
+    ld e,a
+    ld d,0
+    ld hl,stereo.text
+    add hl,de
+    ex de,hl
+    ld hl,screen + screen.24.rows * 1 + 5
+    ld b,3
+    jp print.de.b
+
+text.separation: defm "Sep: "
 
 ;-------------------------------------------------------------------------------
 ; PATTERN TRACKER for MOD player

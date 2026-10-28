@@ -6,6 +6,7 @@ include "../memory.i"
 include "../ports/internal.i"
 include "../ports/megabyte.i"
 include "../ports/keyboard.i"
+include "../ports/sample_engine.i"
 include "../constants/mod.i"
 include "../constants/opcodes.i"
 
@@ -232,6 +233,9 @@ demo:
     ld (@mk.enable+1),hl
  @mk.enable:
     call 0
+
+    xor a                           ; interrupts on afterwards
+    call stereo.send                ; SAMantha: the listener's separation
 
 ;-------------------------------------------------------------------------------
 
@@ -614,6 +618,39 @@ demo:
   @not.c:
     ld (@still.c+1),a
 
+ ; scan s - SAMantha only: next stereo separation
+
+    ld a,(bp.device)
+    cp bp.device.engine
+    jr nz,@skip.s
+
+    ld a,keyboard.gfdsa
+    in a,(port.keyboard)
+    cpl
+    and %00000010
+    jr z,@not.s
+
+  @still.s:
+
+    ld a,0
+    or a
+    jr nz,@not.s
+
+    call stereo.next
+    ld a,(@ints.on+1)               ; 1 = paused: leave interrupts off
+    call stereo.send
+
+    ld a,(@trackon+1)
+    cp @demo.tracker
+    call z,print.amplification.factor
+
+    ld a,1
+
+  @not.s:
+    ld (@still.s+1),a
+
+  @skip.s:
+
  ; scan shift
 
     ld a,keyboard.vcxz_shift
@@ -698,6 +735,62 @@ demo:
  @not.f9:
 
     jp @demo.loop
+
+;-------------------------------------------------------------------------------
+; SAMantha stereo separation, chosen with S while a tune plays. Kept for the
+; next tune (until a reboot); every tune starts with it.
+
+stereo.step:    defb 2              ; index into stereo.values: 60%
+
+stereo.values:  defb 255, 191, se.separation.default, 128, 64, 0
+stereo.steps:   equ $ - stereo.values
+stereo.text:    defm "100 75 60 50 25  0"   ; 3 characters per step, %
+
+;-------------------------------------------------------------------------------
+stereo.next:
+
+ ; S: 100% -> 75% -> 60% -> 50% -> 25% -> 0% (mono) -> 100%
+
+    ld a,(stereo.step)
+    inc a
+    cp stereo.steps
+    jr c,$+3
+    xor a
+    ld (stereo.step),a
+
+    ret
+
+;-------------------------------------------------------------------------------
+stereo.send:
+
+ ; send the chosen separation to SAMantha (nothing for other devices)
+
+ ; input:
+ ; - a = 0: interrupts on afterwards, else left off (paused)
+
+    ld c,a
+    ld a,(bp.device)
+    cp bp.device.engine
+    ret nz
+
+    ld a,(stereo.step)
+    ld e,a
+    ld d,0
+    ld hl,stereo.values
+    add hl,de
+
+    di                              ; the frame interrupt also sets the index
+    ld a,se.separation
+    out (port.sample_engine.index),a
+    ld a,(hl)
+    out (port.sample_engine.data),a
+
+    ld a,c
+    or a
+    ret nz
+    ei
+
+    ret
 
 ;-------------------------------------------------------------------------------
 
@@ -1370,3 +1463,5 @@ period.note.table:
 ;-------------------------------------------------------------------------------
 
 build.font:
+
+    assert build.font + 19 * 25 <= 0x10000   ; create.fast.print builds 19 characters here

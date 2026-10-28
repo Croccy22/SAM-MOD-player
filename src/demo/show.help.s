@@ -29,13 +29,13 @@ show.help:
     defb 0,0
     defm "* 1, 2, 3, 4: un/mute channel"
     defb 0,0
-    defm "* P: pause/play"
+    defm "* P: pause/play, L: loop on/off"
     defb 0,0
     defm "* Cursors: rewind/fast forward"
     defb 0,0
     defm "* ESC: stop tune, load another"
     defb 0,0
-    defm "* L: loop tune on/off"
+    defm "* S: SAMantha stereo separation"
     defb 0,0
     defm "* On F2/F3 screen, the first    "
     defm "  number is the sample length   "

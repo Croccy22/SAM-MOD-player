@@ -32,6 +32,8 @@ se.global.control:                  equ 0x40
     se.global.ntsc:                     equ %00000010
     se.global.filter:                   equ %00000100
 se.separation:                      equ 0x41 ; 0 = mono, 255 = hard left / right
+    se.separation.default:              equ 153  ; 60%: 80% own side, 20% other side
+                                                 ; (128-255 count one more: 153 -> 154/256)
 se.master.volume:                   equ 0x42 ; 0-64
 se.status:                          equ 0x48 ; read, bits 0-3 block ended (cleared), 4-7 playing
 se.peak:                            equ 0x4c ; read, 4 bytes, 0-127 (cleared)
