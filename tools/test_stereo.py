@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Check the SAMantha stereo separation (key S) in a Z80 emulator.
 
-- engine.enable starts every tune at 60% (SEPARATION 153)
+- engine.enable starts every tune at 25% (SEPARATION 64)
 - the demo's stereo.send sends the chosen value, stereo.next steps
   100 -> 75 -> 60 -> 50 -> 25 -> 0% -> 100%
 - stereo.send leaves interrupts off when paused and on otherwise
 - other devices: stereo.send writes nothing
-- rendered with the engine model, a left-only channel at 60% comes out
-  80% left, 20% right
+- rendered with the engine model, a left-only channel at 25% comes out
+  62.5% left, 37.5% right
 
 usage: test_stereo.py   (needs obj/ from build.sh, pip install z80 numpy)
 """
@@ -57,7 +57,7 @@ def main():
     mod = make_mod()
     sam, bsym, tsym = te.setup(mod)
     enable = sam.writes
-    check((0x41, 153) in enable, f"engine.enable writes SEPARATION 153 (writes: {[(f'{a:02x}', v) for a, v in enable if a >= 0x40]})")
+    check((0x41, 64) in enable, f"engine.enable writes SEPARATION 64 (writes: {[(f'{a:02x}', v) for a, v in enable if a >= 0x40]})")
 
     # the demo, as boot.s loads it: page 0x1f from offset 0x2000, run with
     # HMPR = page.demo - 1 (its code in section D)
@@ -67,7 +67,7 @@ def main():
     sam.lmpr, sam.hmpr = 0x20 | te.PAGE_BURST, te.PAGE_DEMO - 1
     sam.load()
     check(sam.mem[BP_DEVICE] == bsym["device.engine"], "bp.device is SAMantha")
-    check(sam.mem[dsym["stereo.step"]] == 2, "stereo.step starts at 60%")
+    check(sam.mem[dsym["stereo.step"]] == 4, "stereo.step starts at 25%")
 
     def send(paused):
         sam.writes = []
@@ -77,7 +77,7 @@ def main():
         return sam.writes, sam.m.iff1
 
     writes, iff = send(False)
-    check(writes == [(0x41, 153)] and iff, "after enable: sends 153, interrupts on")
+    check(writes == [(0x41, 64)] and iff, "after enable: sends 64, interrupts on")
 
     seen = []
     for _ in range(len(STEPS)):
@@ -86,18 +86,18 @@ def main():
         seen.append(writes[0][1] if len(writes) == 1 and writes[0][0] == 0x41 else writes)
         if not iff:
             check(False, "interrupts on after S while playing")
-    check(seen == [128, 64, 0, 255, 191, 153], f"S steps 50, 25, 0, 100, 75, 60%: {seen}")
+    check(seen == [0, 255, 191, 153, 128, 64], f"S steps 0, 100, 75, 60, 50, 25%: {seen}")
 
     writes, iff = send(True)
-    check(writes == [(0x41, 153)] and not iff, "while paused: sends, interrupts stay off")
+    check(writes == [(0x41, 64)] and not iff, "while paused: sends, interrupts stay off")
 
     sam.internal[te.PAGE_BURST][BP_DEVICE] = 0
     sam.load()
     writes, iff = send(False)
     check(writes == [] and iff, "other device: nothing written")
 
-    # sound: channel 0 only, at 60% and at 100%
-    for sep, want in ((153, 0.25), (255, 0.0), (0, 1.0)):
+    # sound: channel 0 only, at 25%, 60%, 100% and mono
+    for sep, want in ((64, 0.6), (153, 0.25), (255, 0.0), (0, 1.0)):
         sam2, bsym2, _ = te.setup(mod)
         log = te.run_frames(sam2, bsym2, 50)
         memory = np.frombuffer(b"".join(bytes(p) for p in sam2.external), np.uint8)

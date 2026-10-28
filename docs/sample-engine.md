@@ -150,7 +150,7 @@ are 0, SEPARATION is 255, MASTER_VOLUME is 64 and the filter is off.
   other. A separation of s% is k = s × 2.56: 100% = 255, 75% = 191,
   60% = 153 (k 154: 80% own side, 20% other), 50% = 128 (k 129, 50.4%),
   25% = 64, mono = 0.
-- The MOD player starts every tune at 153 (60%); key S steps 100, 75, 60,
+- The MOD player starts every tune at 64 (25%); key S steps 100, 75, 60,
   50, 25 and 0%, and the choice is kept for later tunes until a reboot.
 - **(new)** The filter (bit 2) is the Amiga's "LED" filter: 2-pole low-pass,
   3.09 kHz, Q 0.66, as on the A500 and A1200, matched to within 0.03 dB of the
@@ -184,8 +184,8 @@ Enable it **(new: before anything else)**:
     out (0xc0),a
     ld a,se.global.enable       ; plus se.global.ntsc for NTSC MODs
     out (0xc1),a                ; INDEX is now 0x41
-    ld a,153
-    out (0xc1),a                ; SEPARATION: 60% (255 = hard left/right)
+    ld a,64
+    out (0xc1),a                ; SEPARATION: 25% (255 = hard left/right)
     ld a,64
     out (0xc1),a                ; MASTER_VOLUME
 ```

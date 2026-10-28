@@ -157,7 +157,7 @@ engine.enable:
     ld (engine.enabled),a
     ld (engine.global.sent),a
     ld a,se.separation.default
-    out (port.sample_engine.data),a ; SEPARATION: 60% (the demo then sends
+    out (port.sample_engine.data),a ; SEPARATION: 25% (the demo then sends
                                     ; the listener's choice, key S)
     ld a,64
     out (port.sample_engine.data),a ; MASTER_VOLUME

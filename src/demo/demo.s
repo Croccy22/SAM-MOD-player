@@ -740,9 +740,9 @@ demo:
 ; SAMantha stereo separation, chosen with S while a tune plays. Kept for the
 ; next tune (until a reboot); every tune starts with it.
 
-stereo.step:    defb 2              ; index into stereo.values: 60%
+stereo.step:    defb 4              ; index into stereo.values: 25%
 
-stereo.values:  defb 255, 191, se.separation.default, 128, 64, 0
+stereo.values:  defb 255, 191, 153, 128, se.separation.default, 0
 stereo.steps:   equ $ - stereo.values
 stereo.text:    defm "100 75 60 50 25  0"   ; 3 characters per step, %
 
