@@ -21,6 +21,9 @@ engine.detect:
     ld a,1
     ld (engine.fitted),a
 
+    ld a,device.engine              ; fitted: the device screen starts on it
+    ld (device.device),a
+
     ret
 
 ;-------------------------------------------------------------------------------
