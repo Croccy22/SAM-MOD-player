@@ -248,7 +248,7 @@
     ret
 
 @txt.free:      defm "free"
-@txt.cfg:       defm "\MODPLAY.CFG",0     ; the folder last played from (FAT root)
+@txt.cfg:       defm "\Configs\MODPLAY.CFG",0  ; the folder last played from
 @txt.cfg.len:   equ $ - @txt.cfg
 @txt.parent:    defm "..",0
 @txt.dir:       defm "  <DIR> "
@@ -824,7 +824,7 @@
 ;-------------------------------------------------------------------------------
 @goto.saved:
 
- ; DIR = "..", then DIR = the path in \MODPLAY.CFG, if there is one
+ ; DIR = "..", then DIR = the path in \Configs\MODPLAY.CFG, if there is one
 
     ld hl,@txt.parent
     ld de,@name
@@ -864,7 +864,7 @@
 ;-------------------------------------------------------------------------------
 @save.path:
 
- ; a FAT folder's path (the first line of its listing) -> \MODPLAY.CFG,
+ ; a FAT folder's path (the first line of its listing) -> \Configs\MODPLAY.CFG,
  ; ended by CR. Errors are ignored
 
     ld a,(@sam)
