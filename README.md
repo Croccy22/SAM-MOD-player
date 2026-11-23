@@ -59,7 +59,7 @@ The multi-part code lives in the top 2K of the screen page (`multi.part.base`, 0
 
 #### ADOS
 
-Under [ADOS](https://www.worldofsam.org) (Adrian Brown's DOS for FAT cards, hard drives and floppies, version 1.0 and later), boot loads one more file, `ados`, over the loader's msdos code (`src/loader/ados.s`), and the file list becomes a folder browser:
+Under ADOS (Adrian Brown's DOS for FAT cards, hard drives and floppies, version 1.0 and later), boot loads one more file, `ados`, over the loader's msdos code (`src/loader/ados.s`), and the file list becomes a folder browser:
 
 - **MODs are single files** in any folder of a FAT drive, with long names (`Space Debris (Captain).mod`), or CODE files on a SAM disk or inside a disk image. Each file is opened and its header checked, as on the other DOSes; other files aren't listed.
 - **Folders and disk images** (any 800K file) are listed as `<DIR>`: RETURN goes into them, `..` goes back up (out of an image too). The path shows as the drive label.
