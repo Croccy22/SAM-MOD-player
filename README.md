@@ -73,11 +73,12 @@ How the overlay works: it lists a folder by catching what ADOS's directory hook 
 
 SAMantha is an Amiga Paula-style four-channel sample player in the Tang Nano 20K expansion, on ports 0xC0 and 0xC1 ([register layout](docs/sample-engine.md)). It reads the samples straight from the external memory it provides and mixes them itself, so MODs play at full quality instead of the burst player's 10.4 kHz.
 
-- The device screen lists it as "SAMantha" and shows "absent" (and won't select it) unless the engine's identification register answers and external memory is fitted.
+- The device screen lists it as "SAMantha" and shows "absent" (and won't select it) unless the engine's identification register answers and external memory is fitted. When it is usable, the cursor starts on it, so it's the default.
 - The tracker is unchanged apart from small hooks that record each channel's note starts, period, volume and sample (`se.channels` in `memory.i`, patched in by `se.patch` at init).
 - For this device `burstplayer.create` still makes a screen-device burst player for its tables and helper routines, then `engine.setup` (`src/devices/engine.i`) replaces its run time: a 50 Hz frame interrupt that sets the frame palette and screen, calls the tracker, then sends the channels to the engine.
 - The run time keeps ProTracker's sample start and length per channel, so sample offset (9xx) behaves as on the Amiga (it carries over to later notes without an instrument number, and an offset past the end leaves one word). Effect E0x switches the engine's Amiga filter.
 - Samples are left exactly as in the file (no runways); `install.engine.low` fills in the sample table as ProTracker plays each sample.
+- Stereo: every tune starts at a separation of 25% (SEPARATION 64: each channel 62.5% on its own side, 37.5% on the other, softer than the Amiga's hard left/right on headphones). Key S steps 100, 75, 60, 50, 25 and 0% (mono); the tracker screen (F4) shows it as `Sep:` in place of the volume, which this device doesn't use, and the choice is kept for later tunes until a reboot. `tools/test_stereo.py` checks it in the emulator.
 
 `tools/test_engine.py` runs the assembled player for this device in a Z80 emulator, captures the engine register writes and renders them through a model of the engine to a WAV file. `tools/solo_mod.py` and `tools/compare_audio.py` compare that, channel by channel, with OpenMPT (`openmpt123`).
 

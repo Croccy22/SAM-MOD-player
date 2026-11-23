@@ -231,7 +231,7 @@ class Engine:
             side = 0 if i in (0, 3) else 1
             out[side] += level
         # separation: (L+R)/2 +- (L-R) * k/512
-        k = 256 if self.separation == 255 else self.separation
+        k = self.separation + (self.separation >> 7)    # as the FPGA: 128-255 count one more
         mid, diff = (out[0] + out[1]) / 2, (out[0] - out[1]) * k / 512
         mix = np.stack([mid + diff, mid - diff]) * self.master / 64
         # decimate (box filter)
