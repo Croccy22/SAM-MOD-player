@@ -57,6 +57,18 @@ python3 tools/split_mod.py bigsong.mod --name BIGSONG --out parts
 
 The multi-part code lives in the top 2K of the screen page (`multi.part.base`, 0xb800), which mode 2 does not use, since the loader page is full. The loader file therefore starts at 0xb800 and is loaded there by boot.
 
+#### ADOS
+
+Under [ADOS](https://www.worldofsam.org) (Adrian Brown's DOS for FAT cards, hard drives and floppies, version 1.0 and later), boot loads one more file, `ados`, over the loader's msdos code (`src/loader/ados.s`), and the file list becomes a folder browser:
+
+- **MODs are single files** in any folder of a FAT drive, with long names (`Space Debris (Captain).mod`), or CODE files on a SAM disk or inside a disk image. Each file is opened and its header checked, as on the other DOSes; other files aren't listed.
+- **Folders and disk images** (any 800K file) are listed as `<DIR>`: RETURN goes into them, `..` goes back up (out of an image too). The path shows as the drive label.
+- **Loading** reads the whole file through ADOS's stream hooks, into internal memory or, with a megabyte interface, into external memory.
+
+To run the player from a card, copy the player's disk image to it and, under ADOS, `DIR = "MODPLAY.MGT"` then `BOOT`; then `..` in the file list to get to your MOD folders. Multi-part MODs aren't needed under ADOS: a MOD of any size the memory takes is one file.
+
+How the overlay works: it lists a folder by catching what ADOS's directory hook prints (the ROM's K and S channels are pointed at a routine that stores the text in the mod page), keeps each entry's line in that listing so the full name can be found again, and sets DVAR 48 around its hooks so ADOS gives errors back instead of stopping the loader. It keeps fat.s's entry points and the variables the rest of the loader uses at the same addresses, so it is assembled with the loader's symbols (`build.xml`, or `tools/build_ados_test.sh` for a disk with no DOS on it). The loader keeps the overlay's address in its last two bytes below 0xc000 for boot.
+
 ### SAMantha
 
 SAMantha is an Amiga Paula-style four-channel sample player in the Tang Nano 20K expansion, on ports 0xC0 and 0xC1 ([register layout](docs/sample-engine.md)). It reads the samples straight from the external memory it provides and mixes them itself, so MODs play at full quality instead of the burst player's 10.4 kHz.

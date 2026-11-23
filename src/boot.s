@@ -28,6 +28,7 @@
 @file.burstplayer:  defm "burstplayer  "
 @file.loader:       defm "loader       "
 @file.demo:         defm "demo         "
+@file.ados:         defm "ados         "
 
 @palette:   defb 0x7f,0x00,0x6b,0x63,0x2c,0x24,0x77,0x78,0x70,0x2a,0x22,0x28,0x20,0x7d,0x5f,0x6a
 
@@ -70,6 +71,11 @@
 
     ld a,dvar.version
     call @get.dvar
+    cp 60                           ; ADOS 1.0 and later
+    call nc,@load.ados
+
+    ld a,dvar.version
+    call @get.dvar
     ld e,a
     push de
     ld a,dvar.drive_2.tracks
@@ -95,6 +101,32 @@
     jr @loop
 
     ret
+
+;------------------------------------------------------------------------------
+@load.ados:
+
+ ; ADOS: its overlay (loader/ados.s) goes over the loader's msdos code, at the
+ ; address the loader keeps in its last two bytes before 0xc000
+
+    in a,(port.lmpr)
+    ld b,a
+    ld a,page.loader - 2            ; the loader's first page in section B
+    call @fix.page
+    ld c,a
+    ld a,b
+    and %11100000
+    or c
+    out (port.lmpr),a               ; (interrupts are off, no stack use)
+    ld hl,(0x8000 - 2)
+    ld a,b
+    out (port.lmpr),a
+
+    ld de,0x8000 - 0xc000
+    add hl,de
+    ex de,hl
+    ld a,page.loader
+    ld hl,@file.ados
+    jp @load.file.address
 
 ;------------------------------------------------------------------------------
 @set.burstplayer.page:

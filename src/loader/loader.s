@@ -29,8 +29,10 @@ load.offs:  equ 0x8000
     include "multipart.s"
     include "engine.s"
 
-    assert $ <= 0xc000
-    defs 0xc000 - $
+    assert $ <= 0xc000 - 2
+    defs 0xc000 - 2 - $
+
+loader.overlay: defw fat.disk.read  ; where boot loads ados (the ADOS overlay, ados.s)
 
 ;-------------------------------------------------------------------------------
     org 0xc000
@@ -1941,6 +1943,7 @@ relocate.low:
 include "bdos.s"
 include "unpack.s"
 include "fat.s"
+mod.overlay.end:            ; ados.s goes over fat.s, up to here
 include "mod.s"
 
 ;-------------------------------------------------------------------------------

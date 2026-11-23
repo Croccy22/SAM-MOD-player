@@ -62,7 +62,22 @@
 defm "${version}"
 </echo>
 
-			<assemble source="loader" mapfile="${mapfile}" />
+			<exec executable="${python}" failonerror="true">
+				<arg value="${pyz80}" />
+				<arg value="--obj=obj/loader" />
+				<arg value="--exportfile=obj/loader.sym" />
+				<arg value="--mapfile=obj/loader.map" if:true="${mapfile}" />
+				<arg value="src/loader/loader.s" />
+			</exec>
+
+			<!-- the ADOS overlay, assembled over the loader's fat.s (loader/ados.s) -->
+			<exec executable="${python}" failonerror="true">
+				<arg value="${pyz80}" />
+				<arg value="--obj=obj/ados" />
+				<arg value="--importfile=obj/loader.sym" />
+				<arg value="--mapfile=obj/ados.map" if:true="${mapfile}" />
+				<arg value="src/loader/ados.s" />
+			</exec>
 			<assemble source="demo" mapfile="${mapfile}" />
 			<assemble source="burstplayer" mapfile="${mapfile}" debug="true" />
 			<assemble source="tracker" mapfile="${mapfile}" />
@@ -84,6 +99,7 @@ defm "${version}"
 				<arg value="-I" /><arg file="obj/burstplayer" />
 				<arg value="-I" /><arg file="obj/loader" />
 				<arg value="-I" /><arg file="obj/demo" />
+				<arg value="-I" /><arg file="obj/ados" />
 
 				<arg value="-I" /><arg file="res/test.m" />
 
