@@ -77,6 +77,7 @@
 
     ld (@entry),de
 
+ @again:
     call @prepare
 
     ld hl,(@chans)          ; catch the listing: the ROM's K and S channels
@@ -120,6 +121,17 @@
         ld (@sam),a
 
  @sam.checked:
+
+    ld a,(@sam)             ; the first listing, in the player's own disk:
+    ld hl,@first            ; out of it, to the folder last played from
+    and (hl)
+    ld (hl),0
+    jr z,@+listing
+    call @goto.saved
+    call @finish
+    jr @-again
+
+ @listing:
 
     ; the first line with text is the path: its end becomes the label
 
@@ -236,6 +248,8 @@
     ret
 
 @txt.free:      defm "free"
+@txt.cfg:       defm "\MODPLAY.CFG",0     ; the folder last played from (FAT root)
+@txt.cfg.len:   equ $ - @txt.cfg
 @txt.parent:    defm "..",0
 @txt.dir:       defm "  <DIR> "
 
@@ -351,9 +365,8 @@
  ; - a = DVAR 48 (0 = BASIC errors, 1 = given back)
 
     ld e,a
-    ld a,i
-    push af                 ; p/v = interrupts were on
-    di
+    di                      ; (and left off: the loader runs with interrupts off,
+                            ; and the DOS turns them on in its hooks)
     in a,(port.lmpr)
     ld d,a
     ld a,(svar.dosflg)
@@ -367,9 +380,6 @@
     ld (@sam.dvar48),a
     ld a,d
     out (port.lmpr),a
-    pop af
-    ret po
-    ei
     ret
 
 
@@ -502,6 +512,7 @@
     push de
     push hl
     exx
+    call @save.path
     pop hl
     pop de
 
@@ -795,10 +806,102 @@
 @txt.code:          defm "CODE",0
 
 ;-------------------------------------------------------------------------------
+@first:     defb 1          ; (the overlay is loaded afresh at each boot)
 @entry:     defw 0
 @offset:    defw 0
 @next:      defw 0
 @sam:       defb 0
+
+;-------------------------------------------------------------------------------
+@cfg.name:
+
+    ld hl,@txt.cfg
+    ld de,@name
+    ld bc,@txt.cfg.len
+    ldir
+    ret
+
+;-------------------------------------------------------------------------------
+@goto.saved:
+
+ ; DIR = "..", then DIR = the path in \MODPLAY.CFG, if there is one
+
+    ld hl,@txt.parent
+    ld de,@name
+    ld bc,3
+    ldir
+    call @name.args
+    rst 8
+    defb @hook.set.dir
+    ex af,af'
+    ret c
+
+    call @cfg.name
+    call @open
+    ret c
+    xor a                   ; its first 255 bytes to the mod page
+    ld de,255
+    ld c,page.mod
+    call ib.read
+    rst 8
+    defb @hook.close
+    ex af,af'
+    ret c
+    ld hl,0x8000
+    call ib.line            ; the path, ended by CR
+    inc b
+    dec b
+    ret z
+    ld hl,@line
+    ld de,@name
+    ld bc,201
+    ldir
+    call @name.args
+    rst 8
+    defb @hook.set.dir
+    ret
+
+;-------------------------------------------------------------------------------
+@save.path:
+
+ ; a FAT folder's path (the first line of its listing) -> \MODPLAY.CFG,
+ ; ended by CR. Errors are ignored
+
+    ld a,(@sam)
+    or a
+    ret nz
+
+    ld hl,0x8000
+
+    @loop:
+        call ib.line
+        ret z
+        inc b
+        dec b
+        jr z,@-loop
+
+    ld hl,@line
+    ld e,b
+    ld d,0
+    add hl,de
+    ld (hl),13
+    inc b
+    push bc
+
+    call @cfg.name
+    call @name.args
+    rst 8
+    defb @hook.long.name
+
+    call @uifa.clear        ; CODE, from @line (page 0)
+    pop bc
+    ld (ix + 0),19
+    ld (ix + 32),@line & 0xff
+    ld (ix + 33),(@line >> 8) + 0x40
+    ld (ix + 35),b
+    rst 8
+    defb 132                ; save (replaces the old one)
+    ret
 
 ;===============================================================================
 ; helpers run at inst.buffer (section B), which page the mod page into
