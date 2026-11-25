@@ -61,6 +61,8 @@
 @disk.read:
 
     ld (save.sam.sp+1),sp
+    ld hl,@radio.load       ; for the Radio Station (radio.s)
+    ld (radio.load.vector),hl
     ld a,1
     ld (msdos+1),a          ; -> fat.directory.read
     ret
@@ -156,7 +158,7 @@
     jr nz,@add.parent
     ld a,b
     cp 4                    ; "C:\" is the root
-    jr c,@+loop.lines
+    jr c,@+add.radio
 
  @add.parent:
 
@@ -167,6 +169,22 @@
     ld bc,3
     ldir
     call @add.folder
+
+ @add.radio:
+
+    ld a,(@sam)             ; the Radio Station, in a FAT folder with the
+    or a                    ; samfpga board's comms port there (radio.s)
+    jr nz,@+loop.lines
+    call radio.present
+    jr nz,@+loop.lines
+    ld hl,@radio.offset
+    ld (@offset),hl
+    ld hl,@txt.radio
+    ld de,@name
+    ld bc,@txt.radio.len
+    ldir
+    ld hl,@txt.radio.tag
+    call @add.folder.hl
 
     @loop.lines:
 
@@ -252,14 +270,23 @@
 @txt.cfg.len:   equ $ - @txt.cfg
 @txt.parent:    defm "..",0
 @txt.dir:       defm "  <DIR> "
+@txt.radio.tag: defm " (RADIO)"
+@txt.radio:     defm "Radio Station",0
+@txt.radio.len: equ $ - @txt.radio
+@radio.offset:  equ 0xfffe              ; (as @parent.offset: not a line of the listing)
 
 ;-------------------------------------------------------------------------------
 @add.folder:
 
  ; adds the folder or image in @name (0-terminated)
 
-    ld de,(@entry)
     ld hl,@txt.dir
+
+@add.folder.hl:
+
+ ; hl = its 8 character tag
+
+    ld de,(@entry)
     ld bc,8
     ldir
     ld hl,@name
@@ -473,6 +500,8 @@
     ld h,(ix + @dir.date + 2)
     ld a,h
     and l
+    cp @radio.offset & 0xff
+    jp z,radio.start        ; (listing lines are at 0x8000-0xbfff: never 0xfffe)
     inc a
     jr z,@up
 
@@ -574,6 +603,18 @@
     defb @hook.close
     call @finish
     jp file.loaded          ; with the type select.key kept on the stack
+
+;-------------------------------------------------------------------------------
+@radio.load:
+
+ ; the Radio Station's tune (radio.s): hl = its path (0-terminated), the
+ ; stack as at fat.file.find after its return address (the type)
+
+    ld de,@name
+    ld bc,64
+    ldir
+    call @prepare
+    jp @-load
 
 ;-------------------------------------------------------------------------------
 @open:
@@ -865,10 +906,11 @@
 @save.path:
 
  ; a FAT folder's path (the first line of its listing) -> \.samfpga\MODPLAY.CFG,
- ; ended by CR. Errors are ignored
+ ; ended by CR. Errors are ignored. Not for the Radio Station's tunes
 
-    ld a,(@sam)
-    or a
+    ld a,(radio.on)
+    ld hl,@sam
+    or (hl)
     ret nz
 
     ld hl,0x8000

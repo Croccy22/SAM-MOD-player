@@ -69,6 +69,18 @@ To run the player from a card, copy the player's disk image to it and, under ADO
 
 How the overlay works: it lists a folder by catching what ADOS's directory hook prints (the ROM's K and S channels are pointed at a routine that stores the text in the mod page), keeps each entry's line in that listing so the full name can be found again, and sets DVAR 48 around its hooks so ADOS gives errors back instead of stopping the loader. It keeps fat.s's entry points and the variables the rest of the loader uses at the same addresses, so it is assembled with the loader's symbols (`build.xml`, or `tools/build_ados_test.sh` for a disk with no DOS on it). The loader keeps the overlay's address in its last two bytes below 0xc000 for boot.
 
+#### Radio Station (ADOS and the samfpga board)
+
+With the samfpga board's comms port there (its ESP32 on Wi-Fi), every FAT folder's list starts with `(RADIO) Radio Station`. Choose it and the player plays random MODs one after another. The board's ESP32 finds them on Modland and keeps three ready in `\RADIO` on the card; the player asks for each over the comms port (`AT$RADIO` commands) and loads it as a chosen MOD.
+
+- A tune stops at its end. A `B` jump back to a position already played counts as the end (`disable.pos` 2, `next.position` in `tracker.s`). It also stops after 7 minutes at most.
+- While a tune plays:
+  - **F** keeps it: the board moves it to `\MODS\FAVOURITES\Artist - Title.mod`;
+  - **N** plays the next tune;
+  - **ESC** stops the radio and goes back to the file list.
+- The loader's side is `src/loader/radio.s`, in the multi-part code's 2K, with its variables (`radio.vars` in `memory.i`) shared with the demo. The demo's side is `radio.demo.start` and `radio.demo.poll`. The commands and the board's side are in samfpga's `docs/radio.md`.
+- `tools/test_radio.py` tests it in a Z80 emulator, with a pretend ESP32 on the comms port: the loader's radio, the demo's keys and time limit, and the end of a tune in `next.position`.
+
 ### SAMantha
 
 SAMantha is an Amiga Paula-style four-channel sample player in the Tang Nano 20K expansion, on ports 0xC0 and 0xC1 ([register layout](docs/sample-engine.md)). It reads the samples straight from the external memory it provides and mixes them itself, so MODs play at full quality instead of the burst player's 10.4 kHz.

@@ -81,6 +81,7 @@ enable.burst:           equ var + 50    ; start burstplayer
 exit.burst:             equ var + 52    ; stop burstplayer and exit
 disable.pos:            equ var + 54    ; disable "B" command (jump) + looping
 mstatus:                equ var + 55    ; 0=playing, 1=stopped
+song.position.max:      equ var + 56    ; the Radio Station (disable.pos 2): furthest position played
 
 ; SAMantha - written by hooks in the tracker's channel routines (for
 ; every device), read once a frame by the engine runtime (burstplayer.s)
@@ -146,6 +147,18 @@ burstplayer.start:      equ 0x8000
     screen.attributes:      equ screen + 0x2000
     screen.width:           equ 0x20
     multi.part.base:        equ 0x8000 + 0x3800 ; 2K for multi-part loader code (loader/multipart.s)
+
+    ; the Radio Station (loader/radio.s): its variables at the end of that
+    ; 2K, shared with the demo (which runs with the screen page in section C
+    ; too, so it sees them at the same addresses)
+    radio.vars:             equ multi.part.base + 0x7f0 ; 0xbff0, up to loader.overlay
+        radio.on:               equ radio.vars + 0  ; 1 = the radio is playing
+        radio.action:           equ radio.vars + 1  ; why the demo stopped: radio.action.*
+            radio.action.ended:     equ 0           ;   the tune ended (or its time was up)
+            radio.action.next:      equ 1           ;   N: the next tune
+            radio.action.stop:      equ 2           ;   ESC: the radio off, back to the file list
+        radio.load.vector:      equ radio.vars + 2  ; ADOS overlay: loads the MOD named at hl (ados.s)
+    radio.vars.len:         equ 4
 
     screen.24.rows:         equ ( 8 * screen.width )
     screen.32.rows:         equ ( 6 * screen.width )

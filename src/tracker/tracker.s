@@ -306,6 +306,17 @@ tracker:
     bit 7,a
     jr nz,loop.time   ;reached song position 128
 
+    ld a,(disable.pos)  ; the Radio Station: back to a position already
+    cp 2                ; played (a "B" jump back) is the tune going round
+    jr nz,@not.radio    ; again, so it ends
+    ld a,(song.position.max)
+    cp (hl)
+    jr nc,play.status
+    ld a,(hl)
+    ld (song.position.max),a
+ @not.radio:
+    ld a,(hl)
+
    song.length: equ $+1
     cp 0
     jr nz,nonewposyet
@@ -319,6 +330,7 @@ tracker:
     ld a,(disable.pos) ;0=keep repeating
     or a
     ret z
+    ld a,1             ;stopped (disable.pos 2: the Radio Station)
 
  quit:
 

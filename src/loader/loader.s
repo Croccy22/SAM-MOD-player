@@ -28,6 +28,12 @@ load.offs:  equ 0x8000
 
     include "multipart.s"
     include "engine.s"
+    include "radio.s"
+
+    assert $ <= radio.vars
+    defs radio.vars - $
+
+    defs radio.vars.len             ; (all 0 at boot: the radio off)
 
     assert $ <= 0xc000 - 2
     defs 0xc000 - 2 - $
@@ -445,6 +451,10 @@ loader.palette:
 ;-------------------------------------------------------------------------------
 loader:
 
+    ld a,(radio.on)         ; the Radio Station's tune didn't load (radio.s)
+    or a
+    jp nz,radio.failed
+
     call @loader.init
     call @show.screen
     call @check.drives
@@ -467,6 +477,10 @@ loader:
     call @directory.read
 
  @select.file:
+
+    ld a,(radio.on)         ; the Radio Station: on to the next tune (radio.s)
+    or a
+    jp nz,radio.after
 
     call @show.screen
     call @print.drive.number

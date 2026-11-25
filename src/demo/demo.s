@@ -237,6 +237,8 @@ demo:
     xor a                           ; interrupts on afterwards
     call stereo.send                ; SAMantha: the listener's separation
 
+    call radio.demo.start           ; the Radio Station (loader/radio.s)
+
 ;-------------------------------------------------------------------------------
 
 @demo.loop:
@@ -701,6 +703,16 @@ demo:
 
   @not.minus:
 
+ ; the Radio Station: ESC, N, F and the tune's time
+
+    ld a,(radio.on)
+    or a
+    jr z,@not.radio
+    call radio.demo.poll
+    ld bc,0
+    jr z,@exit
+ @not.radio:
+
  ; scan esc
 
     ld bc,0
@@ -735,6 +747,160 @@ demo:
  @not.f9:
 
     jp @demo.loop
+
+;-------------------------------------------------------------------------------
+; The Radio Station (loader/radio.s): the tune stops at its end (a "B" jump
+; back ends it too: disable.pos 2, tracker.s next.position) or after
+; radio.demo.max.frames; ESC stops the radio, N plays the next tune, F keeps
+; this one. The loader is told which through radio.action, the board (its
+; ESP32) through the comms port: PLAYING once loaded, FAV for F.
+
+radio.demo.max.frames:  equ 7 * 60 * 50     ; 7 minutes
+radio.port.status:      equ 196
+radio.port.data:        equ 197
+
+radio.demo.start:
+
+    ld a,(radio.on)
+    or a
+    jr nz,@radio.on
+    ld a,(disable.pos)              ; the radio left "stop at the end": back to repeating
+    cp 2
+    ret nz
+    xor a
+    ld (disable.pos),a
+    ret
+
+ @radio.on:
+    ld a,2
+    ld (disable.pos),a
+    xor a
+    ld (song.position.max),a
+    ld hl,0
+    ld (@radio.frames),hl
+    ld a,(countint)
+    ld (@radio.last),a
+    ld a,1                          ; (keys held from before: they count once let go)
+    ld (@radio.f.held),a
+    ld (@radio.n.held),a
+    ld hl,@radio.txt.playing
+    call @radio.send
+    ld de,@radio.txt.keys
+
+@radio.say:
+
+ ; de = a line of text (32) at the bottom
+
+    ld hl,screen + screen.24.rows * 23
+    ld b,32
+    jp print.de.b
+
+;-------------------------------------------------------------------------------
+radio.demo.poll:
+
+ ; output:
+ ; - z = stop the tune now, radio.action says why
+
+    ld a,keyboard.caps_tab_esc
+    in a,(port.status)
+    and %00100000
+    ld a,radio.action.stop
+    jr z,@radio.stop
+
+    ld a,keyboard.bnm_symbol_space
+    in a,(port.keyboard)
+    and %00001000                   ; N
+    ld hl,@radio.n.held
+    jr nz,@radio.n.up
+    ld a,(hl)
+    or a
+    jr nz,@radio.f
+    ld a,radio.action.next
+
+ @radio.stop:
+    ld (radio.action),a
+    xor a
+    ret
+
+ @radio.n.up:
+    ld (hl),0
+
+ @radio.f:
+    ld a,keyboard.gfdsa
+    in a,(port.keyboard)
+    and %00001000                   ; F
+    ld hl,@radio.f.held
+    jr nz,@radio.f.up
+    ld a,(hl)
+    or a
+    jr nz,@radio.time
+    ld (hl),1
+    ld hl,@radio.txt.fav
+    call @radio.send
+    ld de,@radio.txt.saved
+    call @radio.say
+    jr @radio.time
+
+ @radio.f.up:
+    ld (hl),0
+
+ @radio.time:
+    ld a,(countint)                 ; frames since the last look
+    ld hl,@radio.last
+    ld c,(hl)
+    ld (hl),a
+    sub c
+    ld e,a
+    ld d,0
+    ld hl,(@radio.frames)
+    add hl,de
+    ld (@radio.frames),hl
+    ld de,-radio.demo.max.frames
+    add hl,de
+    ld a,radio.action.ended
+    jr c,@radio.stop                ; time's up
+    or 1
+    ret
+
+;-------------------------------------------------------------------------------
+@radio.send:
+
+ ; hl = command (0-terminated), sent with CR; the answer is left for the loader
+
+    ld a,(hl)
+    or a
+    ld a,13
+    jr z,@radio.put
+    ld a,(hl)
+    inc hl
+    call @radio.put
+    jr @radio.send
+
+ @radio.put:
+    ld c,a
+    ld de,0
+ @radio.put.wait:
+    in a,(radio.port.status)
+    and %00000010                   ; room to send
+    jr nz,@radio.put.go
+    dec de
+    ld a,d
+    or e
+    jr nz,@radio.put.wait
+    ret
+ @radio.put.go:
+    ld a,c
+    out (radio.port.data),a
+    ret
+
+@radio.frames:      defw 0
+@radio.last:        defb 0
+@radio.f.held:      defb 0
+@radio.n.held:      defb 0
+@radio.txt.playing: defm "AT$RADIO=PLAYING",0
+@radio.txt.fav:     defm "AT$RADIO=FAV",0
+@radio.txt.keys:    defm "RADIO   F keep  N next  ESC stop",0
+@radio.txt.saved:   defm "RADIO   Kept in your favourites",0
 
 ;-------------------------------------------------------------------------------
 ; SAMantha stereo separation, chosen with S while a tune plays. Kept for the
