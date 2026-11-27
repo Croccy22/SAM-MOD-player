@@ -185,6 +185,7 @@
     ldir
     ld hl,@txt.radio.tag
     call @add.folder.hl
+    call @radio.to.top
 
     @loop.lines:
 
@@ -271,6 +272,50 @@
 @txt.parent:    defm "..",0
 @txt.dir:       defm "  <DIR> "
 @txt.radio.tag: defm " (RADIO)"
+
+;-------------------------------------------------------------------------------
+@radio.to.top:
+
+ ; the Radio Station, just added at the end of the list, moved to the very top,
+ ; above the drives and the folders (owner, 27 Nov 2026); the loader starts the
+ ; cursor a line lower (loader.radio.top)
+
+    ld a,(loader.entries)
+    dec a                   ; the entries before it
+    ret z
+    ld hl,0
+    ld de,loader.dir.len
+
+    @loop:
+        add hl,de
+        dec a
+        jr nz,@-loop
+
+    push hl                 ; their size
+    ld hl,(@entry)
+    or a
+    sbc hl,de               ; the Radio Station's entry
+    push hl
+    ld de,@swap
+    ld bc,loader.dir.len
+    ldir                    ; kept aside
+    pop hl
+    dec hl                  ; the last byte before it
+    ld de,loader.dir.len
+    ex de,hl
+    add hl,de
+    ex de,hl                ; de = the Radio Station's last byte
+    pop bc
+    lddr                    ; the others down one
+    ld hl,@swap
+    ld de,loader.dir
+    ld bc,loader.dir.len
+    ldir                    ; it, first
+    ld a,1
+    ld (loader.radio.top),a
+    ret
+
+@swap:  defs loader.dir.len
 @txt.radio:     defm "Radio Station",0
 @txt.radio.len: equ $ - @txt.radio
 @radio.offset:  equ 0xfffe              ; (as @parent.offset: not a line of the listing)

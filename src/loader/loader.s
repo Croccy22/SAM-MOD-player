@@ -377,6 +377,9 @@ loader.palette:
     ; output:
     ; - de = address next file entry
 
+    xor a
+    ld (loader.radio.top),a
+
     ld hl,option.dir
     ld de,loader.dir
     ld bc,loader.dir.len
@@ -494,8 +497,11 @@ loader:
     dec a                   ; max
     call cursor.init
 
+    ld a,(loader.radio.top) ; (the Radio Station above the drives: ados.s)
+    ld c,a
     ld a,(loader.drive)
     dec a
+    add c
     ld c,a
     call cursor.print
 
@@ -1278,6 +1284,7 @@ new.read:
 
 ;-------------------------------------------------------------------------------
 var.cursor.blink.timer:     defb 0
+loader.radio.top:           defb 0  ; 1: the Radio Station is the first entry, above the drives (ados.s)
 var.cursor.previous.row:    defb 0  ; relative to offset
 
 ;-------------------------------------------------------------------------------

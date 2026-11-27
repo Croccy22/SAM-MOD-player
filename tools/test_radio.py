@@ -381,8 +381,40 @@ def tracker_tests():
     return ok
 
 
+def listing_tests():
+    """ados.s: the Radio Station moved to the very top of the list, above the drives (27 Nov 2026)."""
+    ok = True
+    s = ready_sam(Esp())
+    m, a, L = s.m, s.ads, s.ads["loader.dir.len"]
+    names = [b"drive 1", b"drive 2", b"..", b"Radio Station"]
+    for n in (2, 3, 4):                         # one drive; two; two and ".."
+        rows = names[:n - 1] + names[-1:]
+        for i, r in enumerate(rows):
+            m.memory[a["loader.dir"] + i * L:a["loader.dir"] + (i + 1) * L] = (r.ljust(L, b"#"))[:L]
+        m.memory[a["loader.entries"]] = n
+        end = a["loader.dir"] + n * L
+        m.memory[a["@entry"]], m.memory[a["@entry"] + 1] = end & 0xff, end >> 8
+        m.memory[a["loader.radio.top"]] = 0
+        sp = STACK - 2
+        m.memory[sp], m.memory[sp + 1] = 0xfe, 0xff
+        m.sp, m.pc = sp, a["@radio.to.top"]
+        m.set_breakpoint(0xfffe)
+        for _ in range(1000):
+            m.run()
+            if m.pc == 0xfffe:
+                break
+        got = [bytes(m.memory[a["loader.dir"] + i * L:a["loader.dir"] + (i + 1) * L]).rstrip(b"#") for i in range(n)]
+        want = [names[-1]] + names[:n - 1]
+        ok &= check(f"listing, {n} entries: the Radio Station first, the rest in order", got == want, str(got))
+        ok &= check(f"listing, {n} entries: the cursor a line lower", m.memory[a["loader.radio.top"]] == 1)
+        ok &= check(f"listing, {n} entries: nothing after the list touched",
+                    bytes(m.memory[end:end + 4]) != b"Radi", bytes(m.memory[end:end + 4]))
+    return ok
+
+
 def main():
     ok = loader_tests()
+    ok &= listing_tests()
     ok &= demo_tests()
     ok &= tracker_tests()
     print("ALL RADIO CHECKS PASS" if ok else "SOME RADIO CHECKS FAILED")
