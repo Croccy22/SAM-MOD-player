@@ -59,6 +59,9 @@ radio.start:
     ld de,radio.txt.no.ados
     jr z,radio.give.up
 
+    ld hl,radio.cmd.show            ; AT$SHOW=MUSIC: the board's LEDs and OLED show the
+    call radio.ask                  ; equaliser, not modem lights, while we have DTR up
+                                    ; (an ESP32 from before 27 Nov 2026 says ERROR: no matter)
     ld a,1
     ld (radio.on),a
     call radio.make.on              ; AT$RADIO=ON,kb
@@ -540,6 +543,7 @@ radio.attributes:
 radio.cmd.on:       defm "AT$RADIO=ON,"
 radio.cmd.on.len:   equ $ - radio.cmd.on
 radio.cmd.next:     defm "AT$RADIO=NEXT",0
+radio.cmd.show:     defm "AT$SHOW=MUSIC",0
 radio.cmd.bad:      defm "AT$RADIO=BAD",0
 radio.cmd.off:      defm "AT$RADIO=OFF",0
 

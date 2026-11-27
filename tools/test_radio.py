@@ -190,14 +190,14 @@ def loader_tests():
     esp = Esp({"AT$RADIO=ON": ["RADIO ON"], "AT$RADIO=NEXT": ["WAIT Finding a tune...", READY]})
     s = ready_sam(esp)
     r = s.call("radio.start", [0])
-    ok &= check("on: ON with the memory", esp.got[:1] == ["AT$RADIO=ON,4096"], str(esp.got))
-    ok &= check("on: NEXT asked twice (WAIT, then READY)", esp.got[1:] == ["AT$RADIO=NEXT", "AT$RADIO=NEXT"], str(esp.got))
+    ok &= check("on: SHOW=MUSIC (the board's LEDs: the equaliser), then ON with the memory", esp.got[:2] == ["AT$SHOW=MUSIC", "AT$RADIO=ON,4096"], str(esp.got))
+    ok &= check("on: NEXT asked twice (WAIT, then READY)", esp.got[2:] == ["AT$RADIO=NEXT", "AT$RADIO=NEXT"], str(esp.got))
     ok &= check("on: the wait shown", "Finding a tune..." in s.statuses, str(s.statuses))
     ok &= check("on: loads the tune", r == "load" and s.peek_str(s.m.hl) == "\\RADIO\\R0001.MOD", f"{r} {s.peek_str(s.m.hl)!r}")
     ok &= check("on: the type on the stack, as select.key keeps it",
                 s.m.memory[s.m.sp + 1] == 0 and s.m.sp == STACK - 4, hex(s.m.sp))    # (push af: a, the type, on top)
     ok &= check("on: radio on, action cleared", s.vars() == (1, 0), str(s.vars()))
-    ok &= check("on: the receive buffer emptied before each command", esp.controls.count(7) == 3, str(esp.controls))
+    ok &= check("on: the receive buffer emptied before each command", esp.controls.count(7) == 4, str(esp.controls))
     info = s.peek_str(s.ls["radio.info"])
     ok &= check("on: INFO kept", info == "Jester - Elysium", repr(info))
 
@@ -234,14 +234,14 @@ def loader_tests():
     s = ready_sam(esp, mb=0)
     r = s.call("radio.start", [0])
     ok &= check("quiet modem: loads", r == "load" and s.peek_str(s.m.hl) == "\\RADIO\\R0001.MOD", r)
-    ok &= check("512K, no external memory: 384K", esp.got[0] == "AT$RADIO=ON,0384", esp.got[0])
+    ok &= check("512K, no external memory: 384K", esp.got[1] == "AT$RADIO=ON,0384", esp.got[1])
 
     s = ready_sam(Esp({"AT$RADIO=ON": ["RADIO ON"], "AT$RADIO=NEXT": [READY]}), mb=0, ram512=False)
     s.call("radio.start", [0])
-    ok &= check("256K: 128K", s.esp.got[0] == "AT$RADIO=ON,0128", s.esp.got[0])
+    ok &= check("256K: 128K", s.esp.got[1] == "AT$RADIO=ON,0128", s.esp.got[1])
     s = ready_sam(Esp({"AT$RADIO=ON": ["RADIO ON"], "AT$RADIO=NEXT": [READY]}), mb=1)
     s.call("radio.start", [0])
-    ok &= check("1 MB: 1024K", s.esp.got[0] == "AT$RADIO=ON,1024", s.esp.got[0])
+    ok &= check("1 MB: 1024K", s.esp.got[1] == "AT$RADIO=ON,1024", s.esp.got[1])
 
     # 10. a long INFO line: kept to 63 characters, the rest dropped
     long = "INFO " + "x" * 90
